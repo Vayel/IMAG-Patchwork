@@ -48,7 +48,9 @@ struct patchwork *creer_rotation(const struct patchwork *p)
 
   for (uint16_t i = 0; i < p->hauteur; i++) {
     for (uint16_t j = 0; j < p->largeur; j++) {
-      pw_rot->primitifs[j][p->hauteur - i - 1] = p->primitifs[i][j];
+      pw_rot->primitifs[p->largeur - j - 1][i] = p->primitifs[i][j];
+      pw_rot->primitifs[p->largeur - j - 1][i].orientation += 1;
+      pw_rot->primitifs[p->largeur - j - 1][i].orientation %= NB_ORIENTATIONS;
     }
   }
 
