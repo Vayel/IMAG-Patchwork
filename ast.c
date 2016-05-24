@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <stdio.h>
 #include "ast.h"
 
 /* constantes pour l'affichage des noms */
@@ -119,19 +121,29 @@ struct noeud_ast_data {
  * les noeud de type adequat lors de leur construction */
 static void afficher_valeur(struct noeud_ast *ast)
 {
-	/*** TODO: A COMPLETER ***/
+  printf("%s", ast->data->nom);
 }
 
 
 static void afficher_unaire(struct noeud_ast *ast)
 {
-	/*** TODO: A COMPLETER ***/
+  printf("%s (", ast->data->nom);
+  (*(ast->afficher))(ast->data->u.oper.u.oper_un.operande);
+  printf(")");
 }
 
 
 static void afficher_binaire(struct noeud_ast *ast)
 {
-	/*** TODO: A COMPLETER ***/
+  printf("(");
+  (*(ast->afficher))(ast->data->u.oper.u.oper_bin.operande_gauche);
+  printf(")");
+
+  printf("%s", ast->data->nom);
+  
+  printf("(");
+  (*(ast->afficher))(ast->data->u.oper.u.oper_bin.operande_droit);
+  printf(")");
 }
 
 
@@ -146,19 +158,30 @@ static void afficher_binaire(struct noeud_ast *ast)
 
 static struct patchwork *evaluer_valeur(struct noeud_ast *ast)
 {
-	/*** TODO: A COMPLETER ***/
+  return (*(ast->data->u.val.creer_patchwork))(ast->data->u.val.nature);
 }
 
 
 static struct patchwork *evaluer_unaire(struct noeud_ast *ast)
 {
-	/*** TODO: A COMPLETER ***/
+  return (*(ast->data->u.oper.u.oper_un.creer_patchwork))(
+    ast->data->u.oper.u.oper_un.operande->evaluer(
+      ast->data->u.oper.u.oper_un.operande
+    )
+  );
 }
 
 
 static struct patchwork *evaluer_binaire(struct noeud_ast *ast)
 {
-	/*** TODO: A COMPLETER ***/
+  return (*(ast->data->u.oper.u.oper_bin.creer_patchwork))(
+    ast->data->u.oper.u.oper_bin.operande_gauche->evaluer(
+      ast->data->u.oper.u.oper_bin.operande_gauche
+    ),
+    ast->data->u.oper.u.oper_bin.operande_droit->evaluer(
+      ast->data->u.oper.u.oper_bin.operande_droit
+    )
+  );
 }
 
 
@@ -172,14 +195,39 @@ static struct patchwork *evaluer_binaire(struct noeud_ast *ast)
 
 struct noeud_ast *creer_valeur(const enum nature_primitif nat_prim)
 {
-	/*** TODO: A COMPLETER ***/
+  struct noeud_ast *noeud = malloc(sizeof(struct noeud_ast));
+
+  struct noeud_ast_data *data = malloc(sizeof(struct noeud_ast_data));
+  data->nom = noms_primitifs[nat_prim];
+  data->nature = VALEUR;
+  data->u.val.nature = nat_prim;
+  data->u.val.creer_patchwork = &creer_primitif;
+
+  noeud->data = data;
+  noeud->afficher = &afficher_valeur;
+  noeud->evaluer = &evaluer_valeur;
+
+  return noeud;
 }
 
 
 struct noeud_ast *creer_unaire(const enum nature_operation nat_oper,
 			       struct noeud_ast *opde)
 {
-	/*** TODO: A COMPLETER ***/
+  struct noeud_ast *noeud = malloc(sizeof(struct noeud_ast));
+
+  struct noeud_ast_data *data = malloc(sizeof(struct noeud_ast_data));
+  data->nom = noms_operations[nat_oper];
+  data->nature = OPERATION;
+  data->u.oper.arite = UNAIRE;
+  data->u.oper.u.oper_un.operande = opde;
+  data->u.oper.u.oper_un.creer_patchwork = &creer_rotation;
+
+  noeud->data = data;
+  noeud->afficher = &afficher_unaire;
+  noeud->evaluer = &evaluer_unaire;
+
+  return noeud;
 }
 
 
@@ -187,7 +235,21 @@ struct noeud_ast *creer_binaire(const enum nature_operation nat_oper,
 				struct noeud_ast *opde_g, 
 				struct noeud_ast *opde_d)
 {
-	/*** TODO: A COMPLETER ***/
+  struct noeud_ast *noeud = malloc(sizeof(struct noeud_ast));
+
+  struct noeud_ast_data *data = malloc(sizeof(struct noeud_ast_data));
+  data->nom = noms_operations[nat_oper];
+  data->nature = OPERATION;
+  data->u.oper.arite = BINAIRE;
+  data->u.oper.u.oper_bin.operande_gauche = opde_g;
+  data->u.oper.u.oper_bin.operande_droit = opde_d;
+  data->u.oper.u.oper_bin.creer_patchwork = (nat_oper == JUXTAPOSITION) ? &creer_juxtaposition : &creer_superposition;
+
+  noeud->data = data;
+  noeud->afficher = &afficher_binaire;
+  noeud->evaluer = &evaluer_binaire;
+
+  return noeud;
 }
 
 
@@ -200,5 +262,15 @@ struct noeud_ast *creer_binaire(const enum nature_operation nat_oper,
 
 void liberer_expression(struct noeud_ast *res)
 {
-	/*** TODO: A COMPLETER ***/
+  if (res->data->nature == OPERATION) {
+    if (res->data->u.oper.arite == UNAIRE) {
+      liberer_expression(res->data->u.oper.u.oper_un.operande);
+    } else if (res->data->u.oper.arite == BINAIRE) {
+      liberer_expression(res->data->u.oper.u.oper_bin.operande_gauche);
+      liberer_expression(res->data->u.oper.u.oper_bin.operande_droit);
+    }
+  }
+
+  free(res->data);
+  free(res);
 }
